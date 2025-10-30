@@ -13,7 +13,7 @@ class NewsController extends Controller
     {
         return response()->json([
             'message' => 'Lista de noticias',
-            'data'    => Noticia::orderBy('fecha_publicacion', 'desc')->get(),
+            'data'    => News::orderBy('fecha_publicacion', 'desc')->get(),
         ], 200);
     }
 
@@ -27,34 +27,34 @@ class NewsController extends Controller
             'fecha_publicacion' => 'nullable|date',
         ]);
 
-        $noticia = Noticia::create($validated);
+        $news = News::create($validated);
 
         return response()->json([
             'message' => 'Noticia creada correctamente',
-            'data'    => $noticia,
+            'data'    => $news,
         ], 201);
     }
 
     // ✅ Mostrar una noticia
     public function show($id)
     {
-        $noticia = Noticia::find($id);
+        $news = News::find($id);
 
-        if (!$noticia) {
+        if (!$news) {
             return response()->json(['message' => 'Noticia no encontrada'], 404);
         }
 
         return response()->json([
             'message' => 'Detalle de noticia',
-            'data'    => $noticia,
+            'data'    => $news,
         ]);
     }
 
     // ✅ Actualizar una noticia
     public function update(Request $request, $id)
     {
-        $noticia = Noticia::find($id);
-        if (!$noticia) {
+        $news = News::find($id);
+        if (!$news) {
             return response()->json(['message' => 'Noticia no encontrada'], 404);
         }
 
@@ -65,23 +65,23 @@ class NewsController extends Controller
             'fecha_publicacion' => 'nullable|date',
         ]);
 
-        $noticia->update($validated);
+        $news->update($validated);
 
         return response()->json([
             'message' => 'Noticia actualizada correctamente',
-            'data'    => $noticia,
+            'data'    => $news,
         ]);
     }
 
     // ✅ Eliminar una noticia
     public function destroy($id)
     {
-        $noticia = Noticia::find($id);
-        if (!$noticia) {
+        $news = News::find($id);
+        if (!$news) {
             return response()->json(['message' => 'Noticia no encontrada'], 404);
         }
 
-        $noticia->delete();
+        $news->delete();
 
         return response()->json(['message' => 'Noticia eliminada correctamente']);
     }
