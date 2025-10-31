@@ -23,25 +23,24 @@ return new class extends Migration
             $table->decimal('purity', 5, 4)->nullable();
             $table->decimal('discount_percentage', 5, 2)->default(0);
 
-            // 🔹 Precios por gramo / onza en distintas monedas
+            // 🔹 Precios por gramo / onza
             $table->decimal('price_per_gram_pen', 15, 8)->nullable();
-            $table->decimal('price_per_gram_bob', 15, 8)->nullable();
             $table->decimal('price_per_gram_usd', 15, 8)->nullable();
+            $table->decimal('price_per_gram_bob', 15, 8)->nullable();
             $table->decimal('price_per_oz', 15, 4)->nullable();
 
-            // 🔹 Totales en monedas
+            // 🔹 Totales
             $table->decimal('total_pen', 15, 8)->nullable();
-            $table->decimal('total_bob', 15, 8)->nullable();
             $table->decimal('total_usd', 15, 8)->nullable();
+            $table->decimal('total_bob', 15, 8)->nullable();
 
-            // 🔹 Tipo de cambio y moneda base
-            $table->string('moneda', 5)->default('PEN'); // moneda de la transacción
-            $table->decimal('exchange_rate_pen_bob', 10, 3)->nullable(); // PEN ↔ BOB
-            $table->decimal('exchange_rate_pen_usd', 10, 3)->nullable(); // PEN ↔ USD
+            // 🔹 Tipo de cambio (solo PEN↔USD)
+            $table->string('moneda', 5)->default('PEN');
+            $table->decimal('exchange_rate_pen_usd', 10, 3)->nullable()->comment('Tipo de cambio PEN ↔ USD');
 
             // 🔹 Cliente y detalles extra
             $table->string('client_name')->nullable();
-            $table->string('tipo_venta')->nullable(); // regular / empresa u otros
+            $table->string('tipo_venta')->nullable(); 
             $table->time('hora')->nullable();
 
             // 🔹 Auditoría

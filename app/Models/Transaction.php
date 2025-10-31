@@ -20,7 +20,7 @@ class Transaction extends Model
         'total_pen',
         'total_usd',
         'total_bob',
-        'exchange_rate',
+        'exchange_rate_pen_usd',
         'moneda',
         'tipo_venta',
         'client_name',
@@ -29,7 +29,7 @@ class Transaction extends Model
     ];
 
     protected $casts = [
-        'grams' => 'decimal:2',
+        'grams' => 'decimal:3',
         'purity' => 'decimal:4',
         'discount_percentage' => 'decimal:2',
         'price_per_gram_pen' => 'decimal:8',
@@ -39,7 +39,7 @@ class Transaction extends Model
         'total_pen' => 'decimal:8',
         'total_usd' => 'decimal:8',
         'total_bob' => 'decimal:8',
-        'exchange_rate' => 'decimal:3',
+        'exchange_rate_pen_usd' => 'decimal:3',
     ];
 
     public function cashRegister()

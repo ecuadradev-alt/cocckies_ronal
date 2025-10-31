@@ -27,7 +27,7 @@ class TransactionController extends Controller
                 'total_bob',
                 'created_at'
             )
-            ->whereDate('created_at', Carbon::today())
+            ->whereDate('created_at', Carbon::today('America/Lima'))
             ->orderByDesc('created_at')
             ->get();
 
@@ -44,7 +44,7 @@ class TransactionController extends Controller
     public function store(Request $request)
     {
         try {
-            // ✅ Validar datos
+            // ✅ Validar datos de entrada
             $validated = $request->validate([
                 'grams'                => 'required|numeric|min:0.01',
                 'purity'               => 'required|numeric|min:0|max:1',
@@ -56,9 +56,9 @@ class TransactionController extends Controller
                 'total_pen'            => 'nullable|numeric|min:0',
                 'total_usd'            => 'nullable|numeric|min:0',
                 'total_bob'            => 'nullable|numeric|min:0',
-                'exchange_rate'        => 'required|numeric|min:0.01',
+                'exchange_rate_pen_usd'=> 'required|numeric|min:0.01',
                 'moneda'               => 'required|string|in:PEN,BOB,USD',
-                'tipo_venta'           => 'nullable|string|in:0,1',
+                'tipo_venta'           => 'nullable|string|in:regular,empresa,0,1',
                 'client_name'          => 'nullable|string|max:255',
                 'hora'                 => 'nullable|string',
             ]);
@@ -67,28 +67,30 @@ class TransactionController extends Controller
             // 🔧 Valores por defecto y automáticos
             // ============================================================
             $validated['metal_type']       = 'oro';
-            $validated['type']             = 'venta';
+            $validated['type']             = 'venta'; // o compra si lo manejas desde el front
             $validated['created_by']       = Auth::id();
             $validated['cash_register_id'] = Auth::user()->cash_register_id ?? 1;
-            $validated['hora']             = $validated['hora'] ?? now()->format('H:i:s');
+            $validated['hora']             = $validated['hora'] ?? now('America/Lima')->format('H:i:s');
 
             // ============================================================
-            // 💰 Calcular totales según moneda (si no vienen del frontend)
+            // 💰 Calcular precios y totales si no vienen del frontend
             // ============================================================
             $grams       = $validated['grams'];
             $priceOz     = $validated['price_per_oz'];
-            $exchange    = $validated['exchange_rate'];
+            $exchange    = $validated['exchange_rate_pen_usd'];
             $purity      = $validated['purity'];
             $discountPct = $validated['discount_percentage'] ?? 0;
 
+            // Cálculos base
             $pricePerGramUSD = ($priceOz / 31.1035) * $purity;
             $pricePerGramPEN = $pricePerGramUSD * $exchange * (1 - $discountPct / 100);
-            $pricePerGramBOB = $pricePerGramUSD * 0.48 * (1 - $discountPct / 100); // ejemplo
+            $pricePerGramBOB = $pricePerGramPEN; // 1 BOB = 1 PEN
 
             $totalPEN = $pricePerGramPEN * $grams;
             $totalUSD = $totalPEN / $exchange;
-            $totalBOB = $pricePerGramBOB * $grams;
+            $totalBOB = $totalPEN; // Igual por paridad
 
+            // Aplicar valores calculados
             $validated['price_per_gram_pen'] = $validated['price_per_gram_pen'] ?? $pricePerGramPEN;
             $validated['price_per_gram_usd'] = $validated['price_per_gram_usd'] ?? $pricePerGramUSD;
             $validated['price_per_gram_bob'] = $validated['price_per_gram_bob'] ?? $pricePerGramBOB;
@@ -97,7 +99,7 @@ class TransactionController extends Controller
             $validated['total_bob']          = $validated['total_bob'] ?? $totalBOB;
 
             // ============================================================
-            // 💾 Crear transacción
+            // 💾 Guardar la transacción
             // ============================================================
             $transaction = Transaction::create($validated);
 
@@ -122,8 +124,10 @@ class TransactionController extends Controller
                 'message' => 'Transacción registrada correctamente',
                 'data'    => $transaction->load(['cashRegister', 'user']),
             ], 201);
+
         } catch (\Throwable $e) {
-            Log::error('Error al registrar transacción', ['error' => $e->getMessage()]);
+            Log::error('❌ Error al registrar transacción', ['error' => $e->getMessage()]);
+
             return response()->json([
                 'success' => false,
                 'message' => 'Error al registrar la transacción',
@@ -135,19 +139,20 @@ class TransactionController extends Controller
     /** ============================================================
      * 🔹 OBTENER TRANSACCIONES DEL DÍA (con relaciones)
      * ============================================================ */
-   public function day()
-{
-    $startOfDay = Carbon::now('America/Lima')->startOfDay();
-    $endOfDay = Carbon::now('America/Lima')->endOfDay();
+    public function day()
+    {
+        $startOfDay = Carbon::now('America/Lima')->startOfDay();
+        $endOfDay   = Carbon::now('America/Lima')->endOfDay();
 
-    $transactions = Transaction::whereBetween('created_at', [$startOfDay, $endOfDay])
-        ->orderBy('created_at', 'desc')
-        ->get();
+        $transactions = Transaction::with(['cashRegister', 'user'])
+            ->whereBetween('created_at', [$startOfDay, $endOfDay])
+            ->orderByDesc('created_at')
+            ->get();
 
-    return response()->json([
-        'success' => true,
-        'data' => $transactions
-    ]);
-}
-
+        return response()->json([
+            'success' => true,
+            'message' => 'Transacciones del día',
+            'data'    => $transactions,
+        ], 200);
+    }
 }
