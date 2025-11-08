@@ -15,4 +15,8 @@ class News extends Model
         'url',
         'fecha_publicacion',
     ];
+
+    protected $casts = [
+        'fecha_publicacion' => 'datetime',
+    ];
 }

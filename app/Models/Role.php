@@ -7,9 +7,6 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Role extends SpatieRole
 {
-    /**
-     * Accesor personalizado: nombre en mayúsculas.
-     */
     protected function name(): Attribute
     {
         return Attribute::make(
@@ -17,12 +14,8 @@ class Role extends SpatieRole
         );
     }
 
-    /**
-     * Método auxiliar para chequear admin.
-     */
-    public function isAdmin()
+    public function isAdmin(): bool
     {
-        // name ya devuelve mayúsculas
-        return $this->name === 'ADMIN';
+        return strtoupper($this->name) === 'ADMIN';
     }
 }

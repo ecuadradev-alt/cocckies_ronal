@@ -40,11 +40,11 @@ return new class extends Migration
 
             // 🔹 Cliente y detalles extra
             $table->string('client_name')->nullable();
-            $table->string('tipo_venta')->nullable(); 
+            $table->string('tipo_venta')->nullable();
             $table->time('hora')->nullable();
 
             // 🔹 Auditoría
-            $table->foreignId('created_by')->constrained('users')->onDelete('cascade');
+            $table->foreignId('created_by')->index()->constrained('users')->onDelete('cascade');
             $table->timestamps();
         });
     }

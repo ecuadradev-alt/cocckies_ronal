@@ -51,4 +51,15 @@ class Transaction extends Model
     {
         return $this->belongsTo(User::class, 'created_by');
     }
+
+    // 🔹 Evento automático: cuando se crea una transacción, actualiza la caja 1
+        protected static function booted()
+        {
+            static::created(function ($transaction) {
+                $cashRegister = CashRegister::find(1); // Caja única
+                if ($cashRegister && $cashRegister->isOpen()) {
+                    $cashRegister->applyTransaction($transaction);
+                }
+            });
+        }
 }
