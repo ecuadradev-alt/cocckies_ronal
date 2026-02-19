@@ -6,6 +6,8 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\CashRegister;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Log;
+use App\Models\Transaction;
 use Carbon\Carbon;
 
 class CashRegisterController extends Controller
@@ -120,4 +122,89 @@ class CashRegisterController extends Controller
             'data'    => $cashRegister,
         ], 200);
     }
+
+            /**
+     * Listar cierres de caja
+     */
+    public function cierres()
+    {
+        try {
+            $closures = CashRegister::with(['openedBy','closedBy'])
+                ->orderByDesc('date')
+                ->get();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lista de cierres obtenida correctamente.',
+                'data'    => $closures,
+            ]);
+
+        } catch (\Throwable $th) {
+            Log::error("Error al listar cierres: ".$th->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'Error al obtener cierres.',
+                'error'   => $th->getMessage(),
+            ], 500);
+        }
+    }
+
+
+    /**
+     * Resumen completo del día
+     */
+   public function resumenDia($date)
+{
+    try {
+        $cashRegister = CashRegister::with(['openedBy','closedBy'])
+            ->where('date', $date)
+            ->first();
+
+        if (!$cashRegister) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No existe caja para esa fecha.',
+            ], 404);
+        }
+
+        $transactions = Transaction::with('user')
+            ->where('cash_register_id', $cashRegister->id)
+            ->orderBy('created_at')
+            ->get();
+
+        $totals = [
+            'total_pen'   => $transactions->sum('total_pen'),
+            'total_usd'   => $transactions->sum('total_usd'),
+            'total_bob'   => $transactions->sum('total_bob'),
+            'total_grams' => $transactions->sum('grams'),
+            'count'       => $transactions->count(),
+        ];
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Detalle del cierre obtenido.',
+            'data' => [
+                'cash_register' => $cashRegister,
+                'transactions'  => $transactions,
+                'totals'        => $totals,
+            ]
+        ]);
+
+    } catch (\Throwable $th) {
+        Log::error("Error en summaryDetail: " . $th->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Error al obtener detalle del cierre.',
+            'error'   => $th->getMessage(),
+        ], 500);
+    }
+}
+
+  /**
+     * Resumen completo del día
+     */
+
+
 }

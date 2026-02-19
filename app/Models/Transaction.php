@@ -3,10 +3,14 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToCompany;
 
 class Transaction extends Model
 {
+    use BelongsToCompany;
+
     protected $fillable = [
+        'company_id',
         'cash_register_id',
         'type',
         'metal_type',
@@ -52,14 +56,14 @@ class Transaction extends Model
         return $this->belongsTo(User::class, 'created_by');
     }
 
-    // 🔹 Evento automático: cuando se crea una transacción, actualiza la caja 1
-        protected static function booted()
-        {
-            static::created(function ($transaction) {
-                $cashRegister = CashRegister::find(1); // Caja única
-                if ($cashRegister && $cashRegister->isOpen()) {
-                    $cashRegister->applyTransaction($transaction);
-                }
-            });
-        }
+    protected static function booted()
+    {
+        static::created(function ($transaction) {
+            $cashRegister = $transaction->cashRegister;
+
+            if ($cashRegister && $cashRegister->isOpen()) {
+                $cashRegister->applyTransaction($transaction);
+            }
+        });
+    }
 }

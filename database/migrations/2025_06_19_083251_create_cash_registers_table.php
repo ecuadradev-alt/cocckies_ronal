@@ -11,37 +11,41 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('cash_registers', function (Blueprint $table) {
-            $table->id();
-            $table->date('date')->unique();
+      Schema::create('cash_registers', function (Blueprint $table) {
+    $table->id();
 
-            // Apertura
-            $table->decimal('opening_cash_pen', 12, 2)->default(0);
-            $table->decimal('opening_cash_bob', 12, 2)->default(0);
-            $table->decimal('opening_cash_usd', 12, 2)->default(0);
-            $table->decimal('opening_gold', 12, 3)->default(0);
+    $table->foreignId('company_id')
+        ->constrained()
+        ->cascadeOnDelete();
 
-            // Saldos actuales
-            $table->decimal('balance_pen', 12, 2)->default(0);
-            $table->decimal('balance_bob', 12, 2)->default(0);
-            $table->decimal('balance_usd', 12, 2)->default(0);
+    $table->date('date');
 
-            // Cierre
-            $table->decimal('closing_cash_pen', 12, 2)->nullable();
-            $table->decimal('closing_cash_bob', 12, 2)->nullable();
-            $table->decimal('closing_cash_usd', 12, 2)->nullable();
-            $table->decimal('closing_gold', 12, 3)->nullable();
+    $table->decimal('opening_cash_pen', 12, 2)->default(0);
+    $table->decimal('opening_cash_bob', 12, 2)->default(0);
+    $table->decimal('opening_cash_usd', 12, 2)->default(0);
+    $table->decimal('opening_gold', 12, 3)->default(0);
 
-            // Estado de la caja
-            $table->enum('status', ['abierta', 'cerrada'])->default('abierta');
-            $table->text('notes')->nullable();
+    $table->decimal('balance_pen', 12, 2)->default(0);
+    $table->decimal('balance_bob', 12, 2)->default(0);
+    $table->decimal('balance_usd', 12, 2)->default(0);
 
-            // Auditoría
-            $table->foreignId('opened_by')->constrained('users')->onDelete('cascade');
-            $table->foreignId('closed_by')->nullable()->constrained('users')->onDelete('set null');
+    $table->decimal('closing_cash_pen', 12, 2)->nullable();
+    $table->decimal('closing_cash_bob', 12, 2)->nullable();
+    $table->decimal('closing_cash_usd', 12, 2)->nullable();
+    $table->decimal('closing_gold', 12, 3)->nullable();
 
-            $table->timestamps();
-        });
+    $table->enum('status', ['abierta', 'cerrada'])->default('abierta');
+    $table->text('notes')->nullable();
+
+    $table->foreignId('opened_by')->constrained('users')->cascadeOnDelete();
+    $table->foreignId('closed_by')->nullable()->constrained('users')->nullOnDelete();
+
+    // 🔒 Evita duplicar caja POR EMPRESA y día
+    $table->unique(['company_id', 'date']);
+
+    $table->timestamps();
+});
+
     }
 
     /**

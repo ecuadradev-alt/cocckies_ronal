@@ -11,21 +11,21 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('news', function (Blueprint $table) {
-            $table->id();
+       Schema::create('news', function (Blueprint $table) {
+                $table->id();
 
-            // 🔹 Campos del modelo News
-            $table->string('titulo');                     // título de la noticia
-            $table->text('descripcion');                  // descripción o contenido
-            $table->string('url', 500)->nullable();       // enlace a la noticia original
-            $table->date('fecha_publicacion')->nullable();// fecha de publicación
+                $table->foreignId('company_id')
+                    ->constrained()
+                    ->cascadeOnDelete();
 
-            // 🔹 Campos opcionales adicionales (si quieres expandir más adelante)
-            // $table->string('autor')->nullable();
-            // $table->string('categoria')->nullable();
+                $table->string('titulo');
+                $table->text('descripcion');
+                $table->string('url', 500)->nullable();
+                $table->date('fecha_publicacion')->nullable();
 
-            $table->timestamps();
-        });
+                $table->timestamps();
+            });
+
     }
 
     /**

@@ -8,45 +8,47 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::create('transactions', function (Blueprint $table) {
-            $table->id();
+       Schema::create('transactions', function (Blueprint $table) {
+    $table->id();
 
-            // 🔹 Relación con caja
-            $table->foreignId('cash_register_id')->constrained()->onDelete('cascade');
+    $table->foreignId('company_id')
+        ->constrained()
+        ->cascadeOnDelete();
 
-            // 🔹 Tipo de operación
-            $table->enum('type', ['compra', 'venta']);
-            $table->enum('metal_type', ['oro', 'plata'])->default('oro');
+    $table->foreignId('cash_register_id')
+        ->constrained()
+        ->cascadeOnDelete();
 
-            // 🔹 Datos principales
-            $table->decimal('grams', 10, 3);
-            $table->decimal('purity', 5, 4)->nullable();
-            $table->decimal('discount_percentage', 5, 2)->default(0);
+    $table->enum('type', ['regular', 'emresa']);
+    $table->enum('metal_type', ['oro', 'plata'])->default('oro');
 
-            // 🔹 Precios por gramo / onza
-            $table->decimal('price_per_gram_pen', 15, 8)->nullable();
-            $table->decimal('price_per_gram_usd', 15, 8)->nullable();
-            $table->decimal('price_per_gram_bob', 15, 8)->nullable();
-            $table->decimal('price_per_oz', 15, 4)->nullable();
+    $table->decimal('grams', 10, 3);
+    $table->decimal('purity', 5, 4)->nullable();
+    $table->decimal('discount_percentage', 5, 2)->default(0);
 
-            // 🔹 Totales
-            $table->decimal('total_pen', 15, 8)->nullable();
-            $table->decimal('total_usd', 15, 8)->nullable();
-            $table->decimal('total_bob', 15, 8)->nullable();
+    $table->decimal('price_per_gram_pen', 15, 8)->nullable();
+    $table->decimal('price_per_gram_usd', 15, 8)->nullable();
+    $table->decimal('price_per_gram_bob', 15, 8)->nullable();
+    $table->decimal('price_per_oz', 15, 4)->nullable();
 
-            // 🔹 Tipo de cambio (solo PEN↔USD)
-            $table->string('moneda', 5)->default('PEN');
-            $table->decimal('exchange_rate_pen_usd', 10, 3)->nullable()->comment('Tipo de cambio PEN ↔ USD');
+    $table->decimal('total_pen', 15, 8)->nullable();
+    $table->decimal('total_usd', 15, 8)->nullable();
+    $table->decimal('total_bob', 15, 8)->nullable();
 
-            // 🔹 Cliente y detalles extra
-            $table->string('client_name')->nullable();
-            $table->string('tipo_venta')->nullable();
-            $table->time('hora')->nullable();
+    $table->string('moneda', 5)->default('PEN');
+    $table->decimal('exchange_rate_pen_usd', 10, 3)->nullable();
 
-            // 🔹 Auditoría
-            $table->foreignId('created_by')->index()->constrained('users')->onDelete('cascade');
-            $table->timestamps();
-        });
+    $table->string('client_name')->nullable();
+    $table->string('tipo_venta')->nullable();
+    $table->time('hora')->nullable();
+
+    $table->foreignId('created_by')
+        ->constrained('users')
+        ->cascadeOnDelete();
+
+    $table->timestamps();
+});
+
     }
 
     public function down(): void

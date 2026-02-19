@@ -3,7 +3,6 @@
 use Illuminate\Support\Facades\Route;
 use Illuminate\Http\Request;
 
-// Controladores principales
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\API\CashRegisterController;
@@ -18,41 +17,59 @@ use App\Http\Controllers\API\DashboardController;
 
 /*
 |--------------------------------------------------------------------------
-| API Routes
+| API Routes (Sanctum)
 |--------------------------------------------------------------------------
-| Este archivo contiene todas las rutas de la API del sistema.
-| Se agrupan las rutas públicas, autenticadas y protegidas por roles/permisos.
+| Autenticación por TOKEN
+| Header: Authorization: Bearer <token>
 |--------------------------------------------------------------------------
 */
 
-// 🔓 RUTAS PÚBLICAS (sin autenticación)
+// 🔓 RUTAS PÚBLICAS
+Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
-Route::post('/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
+Route::post('/password/email', [AuthController::class, 'sendResetLinkEmail']);
+Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 
-// 👤 PERFIL del usuario autenticado
-Route::middleware('auth:sanctum')->get('/profile', function (Request $req) {
-    return response()->json([
-        'user' => $req->user(),
-    ]);
-});
+// 🔐 RUTAS PROTEGIDAS
+Route::middleware('auth:sanctum')->group(function () {
 
-// 🔒 RUTAS PROTEGIDAS (autenticadas con Sanctum)
-Route::middleware(['auth:sanctum'])->group(function () {
+    // Auth
+    Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/refresh', [AuthController::class, 'refresh']);
+    Route::get('/profile', [AuthController::class, 'profile']);
 
     /*
     |--------------------------------------------------------------------------
-    | 🧾 Caja Registradora
+    | Caja Registradora
     |--------------------------------------------------------------------------
     */
-    Route::prefix('caja')->group(function () {
-        Route::post('/abrir',  [CashRegisterController::class, 'abrir']);
-        Route::post('/cerrar', [CashRegisterController::class, 'cerrar']);
-        Route::get('/actual',  [CashRegisterController::class, 'actual']);
-    });
+/*
+|--------------------------------------------------------------------------
+| Caja Registradora
+|--------------------------------------------------------------------------
+*/
+Route::prefix('caja')->group(function () {
+
+    // Abrir caja
+    Route::post('/abrir', [CashRegisterController::class, 'abrir']);
+
+    // Cerrar caja
+    Route::post('/cerrar', [CashRegisterController::class, 'cerrar']);
+
+    // Caja actual (hoy)
+    Route::get('/actual', [CashRegisterController::class, 'actual']);
+
+    // Listar cierres
+    Route::get('/cierres', [CashRegisterController::class, 'cierres']);
+
+    // 🔥 Resumen detallado por día
+    Route::get('/resumen/{date}', [CashRegisterController::class, 'resumenDia']);
+});
+
 
     /*
     |--------------------------------------------------------------------------
-    | 💰 Transacciones
+    | Transacciones
     |--------------------------------------------------------------------------
     */
     Route::prefix('transactions')->group(function () {
@@ -63,7 +80,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | 📰 Noticias
+    | Noticias
     |--------------------------------------------------------------------------
     */
     Route::prefix('noticias')->group(function () {
@@ -76,7 +93,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | 👤 Usuarios
+    | Usuarios
     |--------------------------------------------------------------------------
     */
     Route::prefix('usuarios')->group(function () {
@@ -85,43 +102,7 @@ Route::middleware(['auth:sanctum'])->group(function () {
         Route::get('/{id}', [UserController::class, 'show']);
         Route::put('/{id}', [UserController::class, 'update']);
         Route::delete('/{id}', [UserController::class, 'destroy']);
-    });
 
-    /*
-    |--------------------------------------------------------------------------
-    | 🎭 Roles
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('roles')->group(function () {
-        Route::get('/', [RoleController::class, 'index']);
-        Route::post('/', [RoleController::class, 'store']);
-
-        // Permisos del rol
-        Route::get('/{role}/permisos', [RolePermissionController::class, 'permissions']);
-        Route::put('/{role}/permisos', [RolePermissionController::class, 'update']);
-        Route::post('/{role}/permisos/asignar', [RolePermissionController::class, 'assignPermission']);
-        Route::post('/{role}/permisos/revocar', [RolePermissionController::class, 'revokePermission']);
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | 🔑 Permisos
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('permisos')->group(function () {
-        Route::get('/', [PermissionController::class, 'index']);
-        Route::post('/', [PermissionController::class, 'store']);
-        Route::get('/{permission}', [PermissionController::class, 'show']);
-        Route::put('/{permission}', [PermissionController::class, 'update']);
-        Route::delete('/{permission}', [PermissionController::class, 'destroy']);
-    });
-
-    /*
-    |--------------------------------------------------------------------------
-    | ⚙️ Asignación de Roles y Permisos a Usuarios
-    |--------------------------------------------------------------------------
-    */
-    Route::prefix('usuarios')->group(function () {
         // Roles
         Route::get('/{user}/roles', [UserRoleController::class, 'roles']);
         Route::post('/{user}/roles/asignar', [UserRoleController::class, 'assignRole']);
@@ -135,36 +116,46 @@ Route::middleware(['auth:sanctum'])->group(function () {
 
     /*
     |--------------------------------------------------------------------------
-    | 👑 Dashboard Admin (solo rol admin)
+    | Roles
     |--------------------------------------------------------------------------
     */
-    Route::get('/admin/dashboard', [DashboardController::class, 'index']);
+    Route::prefix('roles')->group(function () {
+        Route::get('/', [RoleController::class, 'index']);
+        Route::post('/', [RoleController::class, 'store']);
+
+        Route::get('/{role}/permissions', [RolePermissionController::class, 'permissions']);
+        Route::put('/{role}/permissions', [RolePermissionController::class, 'update']);
+
+        Route::post('/{role}/permissions/assign', [RolePermissionController::class, 'assignPermission']);
+        Route::post('/{role}/permissions/revoke', [RolePermissionController::class, 'revokePermission']);
+    });
 
     /*
     |--------------------------------------------------------------------------
-    | 📊 Reportes (solo con permiso)
+    | Permisos
     |--------------------------------------------------------------------------
     */
-    Route::middleware('permission:ver reportes')->get('/reportes', [DashboardController::class, 'reportes']);
+    Route::prefix('permisos')->group(function () {
+        Route::get('/', [PermissionController::class, 'index']);
+        Route::post('/', [PermissionController::class, 'store']);
+        Route::get('/{id}', [PermissionController::class, 'show']);
+        Route::put('/{id}', [PermissionController::class, 'update']);
+        Route::delete('/{id}', [PermissionController::class, 'destroy']);
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Dashboard
+    |--------------------------------------------------------------------------
+    */
+    Route::get('/admin/dashboard', [DashboardController::class, 'index'])
+        ->middleware('role:admin');
+
+    Route::get('/reportes', [DashboardController::class, 'reportes'])
+        ->middleware('permission:ver reportes');
 });
 
-
-/*
-|--------------------------------------------------------------------------
-| 👑 Dashboard Admin (solo rol admin)
-|--------------------------------------------------------------------------
-*/
-Route::prefix('admin/dashboard')->middleware('role:admin')->group(function () {
-    Route::get('/stats', [DashboardController::class, 'stats']);       // KPIs
-    Route::get('/charts', [DashboardController::class, 'charts']);     // Gráficas
-    Route::get('/users', [DashboardController::class, 'listUsers']);   // Usuarios
-    Route::post('/users', [DashboardController::class, 'storeUser']);  // Crear usuario
-    Route::get('/users/{id}', [DashboardController::class, 'showUser']);
-    Route::put('/users/{id}', [DashboardController::class, 'updateUser']);
-    Route::delete('/users/{id}', [DashboardController::class, 'deleteUser']);
-});
-
-// 🔁 Fallback para rutas no encontradas
+// ❌ Fallback
 Route::fallback(function () {
-    return response()->json(['message' => 'Ruta no encontrada.'], 404);
+    return response()->json(['message' => 'Ruta no encontrada'], 404);
 });

@@ -2,25 +2,33 @@
 
 namespace Database\Seeders;
 
-use App\Models\CashRegister;
 use Illuminate\Database\Seeder;
+use App\Models\CashRegister;
+use App\Models\Company;
+use App\Models\User;
 
 class CashRegisterSeeder extends Seeder
 {
     public function run(): void
     {
-        CashRegister::create([
-            'date' => now()->toDateString(),
-            'opening_cash_pen' => 1000.00,
-            'opening_cash_bob' => 1800.00,
-            'opening_cash_usd' => 250.00,
-            'opening_gold' => 50.00, // gramos
-            'balance_pen' => 1000.00,
-            'balance_bob' => 1800.00,
-            'balance_usd' => 250.00,
-            'opened_by' => 1,
-            'created_at' => now(),
-            'updated_at' => now(),
-        ]);
+        $company = Company::where('slug', 'demo-company')->first();
+        $admin   = User::where('email', 'admin@demo.com')->first();
+
+        CashRegister::firstOrCreate(
+            [
+                'company_id' => $company->id,
+                'date' => now()->toDateString(),
+            ],
+            [
+                'opening_cash_pen' => 1000,
+                'opening_cash_bob' => 1800,
+                'opening_cash_usd' => 250,
+                'opening_gold' => 50,
+                'balance_pen' => 1000,
+                'balance_bob' => 1800,
+                'balance_usd' => 250,
+                'opened_by' => $admin->id,
+            ]
+        );
     }
 }

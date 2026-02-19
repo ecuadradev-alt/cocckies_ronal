@@ -6,53 +6,52 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use App\Models\User;
 
-class UserPermissionController extends Controller
+class UserRoleController extends Controller
 {
     /**
-     * Asignar un permiso a un usuario
+     * Asignar un rol a un usuario
      */
-    public function givePermission(Request $request, User $user)
+    public function assignRole(Request $request, User $user)
     {
         $validated = $request->validate([
-            'permission' => 'required|exists:permissions,name',
+            'role' => 'required|exists:roles,name',
         ]);
 
-        $user->givePermissionTo($validated['permission']);
+        $user->assignRole($validated['role']);
 
         return response()->json([
-            'success'     => true,
-            'message'     => 'Permiso asignado correctamente',
-            'permissions' => $user->getAllPermissions()->pluck('name'),
-        ], 200);
-        
-    }
-
-    /**
-     * Revocar un permiso a un usuario
-     */
-    public function revokePermission(Request $request, User $user)
-    {
-        $validated = $request->validate([
-            'permission' => 'required|exists:permissions,name',
-        ]);
-
-        $user->revokePermissionTo($validated['permission']);
-
-        return response()->json([
-            'success'     => true,
-            'message'     => 'Permiso removido correctamente',
-            'permissions' => $user->getPermissionNames(),
+            'success' => true,
+            'message' => 'Rol asignado correctamente',
+            'roles'   => $user->getRoleNames(),
         ], 200);
     }
 
     /**
-     * Listar permisos de un usuario
+     * Revocar un rol a un usuario
      */
-    public function permissions(User $user)
+    public function revokeRole(Request $request, User $user)
+    {
+        $validated = $request->validate([
+            'role' => 'required|exists:roles,name',
+        ]);
+
+        $user->removeRole($validated['role']);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Rol removido correctamente',
+            'roles'   => $user->getRoleNames(),
+        ], 200);
+    }
+
+    /**
+     * Listar roles del usuario
+     */
+    public function roles(User $user)
     {
         return response()->json([
-            'success'     => true,
-            'permissions' => $user->getPermissionNames(),
+            'success' => true,
+            'roles'   => $user->getRoleNames(),
         ], 200);
     }
 }

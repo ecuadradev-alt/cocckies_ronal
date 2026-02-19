@@ -4,12 +4,16 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\Traits\BelongsToCompany;
+use App\Models\User;
+use App\Models\Transaction;
 
 class CashRegister extends Model
 {
-    use HasFactory;
+    use HasFactory, BelongsToCompany;
 
     protected $fillable = [
+        'company_id',
         'date',
         'opening_cash_pen',
         'opening_cash_bob',
@@ -43,19 +47,28 @@ class CashRegister extends Model
         'balance_usd' => 'decimal:2',
     ];
 
-    // 🔹 Relación con transacciones
-    public function transactions()
+    /** Usuario que abrió la caja */
+    public function openedBy()
     {
-        return $this->hasMany(Transaction::class, 'cash_register_id');
+        return $this->belongsTo(User::class, 'opened_by');
     }
 
-    // 🔹 Verificar si la caja está abierta
+    /** Usuario que cerró la caja */
+    public function closedBy()
+    {
+        return $this->belongsTo(User::class, 'closed_by');
+    }
+
+    public function transactions()
+    {
+        return $this->hasMany(Transaction::class);
+    }
+
     public function isOpen(): bool
     {
         return $this->status === 'abierta';
     }
 
-    // 🔹 Cerrar la caja
     public function closeRegister(array $closingData = []): void
     {
         $this->update(array_merge($closingData, [
@@ -64,20 +77,17 @@ class CashRegister extends Model
         ]));
     }
 
-    // 🔹 Aplicar transacción a los saldos
     public function applyTransaction(Transaction $transaction)
     {
         if (!$this->isOpen()) {
-            return; // Evita actualizar caja cerrada
+            return;
         }
 
-        if ($transaction->moneda === 'PEN') {
-            $this->balance_pen += $transaction->total_pen;
-        } elseif ($transaction->moneda === 'USD') {
-            $this->balance_usd += $transaction->total_usd;
-        } elseif ($transaction->moneda === 'BOB') {
-            $this->balance_bob += $transaction->total_bob;
-        }
+        match ($transaction->moneda) {
+            'PEN' => $this->balance_pen += $transaction->total_pen,
+            'USD' => $this->balance_usd += $transaction->total_usd,
+            'BOB' => $this->balance_bob += $transaction->total_bob,
+        };
 
         $this->save();
     }

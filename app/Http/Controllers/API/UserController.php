@@ -11,15 +11,17 @@ use Illuminate\Validation\Rule;
 class UserController extends Controller
 {
     /** Listar todos los usuarios con roles y permisos */
-    public function index()
-    {
-        $usuarios = User::with(['roles', 'permissions'])->get();
+        /** Listar todos los usuarios */
+            public function index()
+            {
+                $usuarios = User::all();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $usuarios
-        ], 200);
-    }
+                return response()->json([
+                    'success' => true,
+                    'data'    => $usuarios
+                ], 200);
+            }
+
 
     /** Crear usuario + asignar (roles|permisos) */
     public function store(Request $request)

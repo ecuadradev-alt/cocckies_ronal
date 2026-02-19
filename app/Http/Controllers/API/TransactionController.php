@@ -41,97 +41,119 @@ class TransactionController extends Controller
     /** ============================================================
      * 🔹 CREAR NUEVA TRANSACCIÓN
      * ============================================================ */
+    /* ============================================================
+     *  CREAR TRANSACCIÓN
+     * ============================================================ */
     public function store(Request $request)
     {
         try {
-            // ✅ Validar datos de entrada
+
+            /* =======================
+             * VALIDACIÓN
+             * ======================= */
             $validated = $request->validate([
-                'grams'                => 'required|numeric|min:0.01',
-                'purity'               => 'required|numeric|min:0|max:1',
-                'discount_percentage'  => 'nullable|numeric|min:0|max:100',
-                'price_per_gram_pen'   => 'nullable|numeric|min:0',
-                'price_per_gram_usd'   => 'nullable|numeric|min:0',
-                'price_per_gram_bob'   => 'nullable|numeric|min:0',
-                'price_per_oz'         => 'required|numeric|min:0',
-                'total_pen'            => 'nullable|numeric|min:0',
-                'total_usd'            => 'nullable|numeric|min:0',
-                'total_bob'            => 'nullable|numeric|min:0',
-                'exchange_rate_pen_usd'=> 'required|numeric|min:0.01',
-                'moneda'               => 'required|string|in:PEN,BOB,USD',
-                'tipo_venta'           => 'nullable|string|in:regular,empresa,0,1',
-                'client_name'          => 'nullable|string|max:255',
-                'hora'                 => 'nullable|string',
+                'company_id'            => 'nullable|integer',
+                'client_name'           => 'nullable|string|max:255',
+                'grams'                 => 'required|numeric|min:0.01',
+                'purity'                => 'required|numeric|min:0|max:1',
+                'discount_percentage'   => 'nullable|numeric|min:0|max:100',
+                'price_per_oz'          => 'required|numeric|min:0',
+                'exchange_rate_pen_usd' => 'nullable|numeric|min:0.01',
+                'moneda'                => 'required|in:PEN,USD,BOB',
+                'tipo_venta'            => 'required|in:regular,empresa,0,1',
+                'hora'                  => 'nullable|string'
             ]);
 
-            // ============================================================
-            // 🔧 Valores por defecto y automáticos
-            // ============================================================
+            /* =======================
+             * CAMPOS AUTOMÁTICOS (EXISTEN EN BD)
+             * ======================= */
             $validated['metal_type']       = 'oro';
-            $validated['type']             = 'venta'; // o compra si lo manejas desde el front
             $validated['created_by']       = Auth::id();
             $validated['cash_register_id'] = Auth::user()->cash_register_id ?? 1;
-            $validated['hora']             = $validated['hora'] ?? now('America/Lima')->format('H:i:s');
+            $validated['hora']             = $validated['hora']
+                ?? now('America/Lima')->format('H:i:s');
 
-            // ============================================================
-            // 💰 Calcular precios y totales si no vienen del frontend
-            // ============================================================
+            /* =======================
+             * CÁLCULOS BASE
+             * ======================= */
             $grams       = $validated['grams'];
-            $priceOz     = $validated['price_per_oz'];
-            $exchange    = $validated['exchange_rate_pen_usd'];
             $purity      = $validated['purity'];
-            $discountPct = $validated['discount_percentage'] ?? 0;
+            $priceOz     = $validated['price_per_oz'];
+            $discount    = $validated['discount_percentage'] ?? 0;
+            $exchange    = $validated['exchange_rate_pen_usd'] ?? 1;
 
-            // Cálculos base
+            // Precio base
             $pricePerGramUSD = ($priceOz / 31.1035) * $purity;
-            $pricePerGramPEN = $pricePerGramUSD * $exchange * (1 - $discountPct / 100);
-            $pricePerGramBOB = $pricePerGramPEN; // 1 BOB = 1 PEN
+            $pricePerGramPEN = $pricePerGramUSD * $exchange;
+            $pricePerGramPEN -= $pricePerGramPEN * ($discount / 100);
+            $pricePerGramBOB = $pricePerGramPEN;
 
-            $totalPEN = $pricePerGramPEN * $grams;
-            $totalUSD = $totalPEN / $exchange;
-            $totalBOB = $totalPEN; // Igual por paridad
+            /* =======================
+             * ASIGNAR PRECIOS
+             * ======================= */
+            $validated['price_per_gram_usd'] = $pricePerGramUSD;
+            $validated['price_per_gram_pen'] = $pricePerGramPEN;
+            $validated['price_per_gram_bob'] = $pricePerGramBOB;
 
-            // Aplicar valores calculados
-            $validated['price_per_gram_pen'] = $validated['price_per_gram_pen'] ?? $pricePerGramPEN;
-            $validated['price_per_gram_usd'] = $validated['price_per_gram_usd'] ?? $pricePerGramUSD;
-            $validated['price_per_gram_bob'] = $validated['price_per_gram_bob'] ?? $pricePerGramBOB;
-            $validated['total_pen']          = $validated['total_pen'] ?? $totalPEN;
-            $validated['total_usd']          = $validated['total_usd'] ?? $totalUSD;
-            $validated['total_bob']          = $validated['total_bob'] ?? $totalBOB;
+            /* =======================
+             * TOTALES (SEGÚN MONEDA)
+             * ======================= */
+            $validated['total_pen'] = null;
+            $validated['total_usd'] = null;
+            $validated['total_bob'] = null;
 
-            // ============================================================
-            // 💾 Guardar la transacción
-            // ============================================================
-            $transaction = Transaction::create($validated);
-
-            // ============================================================
-            // 🧮 Actualizar balances de caja
-            // ============================================================
-            $cashRegister = CashRegister::find($validated['cash_register_id']);
-            if ($cashRegister) {
-                match ($validated['moneda']) {
-                    'PEN' => $cashRegister->increment('balance_pen', $validated['total_pen']),
-                    'BOB' => $cashRegister->increment('balance_bob', $validated['total_bob']),
-                    'USD' => $cashRegister->increment('balance_usd', $validated['total_usd']),
-                    default => null,
-                };
+            if ($validated['moneda'] === 'PEN') {
+                $validated['total_pen'] = $pricePerGramPEN * $grams;
             }
 
-            // ============================================================
-            // 📦 Respuesta OK
-            // ============================================================
+            if ($validated['moneda'] === 'USD') {
+                $validated['total_usd'] = $pricePerGramUSD * $grams;
+            }
+
+            if ($validated['moneda'] === 'BOB') {
+                $validated['total_bob'] = $pricePerGramBOB * $grams;
+            }
+
+            /* =======================
+             * GUARDAR TRANSACCIÓN
+             * ======================= */
+            $transaction = Transaction::create($validated);
+
+            /* =======================
+             * ACTUALIZAR CAJA
+             * ======================= */
+            $cashRegister = CashRegister::find($validated['cash_register_id']);
+
+            if ($cashRegister) {
+                if ($validated['moneda'] === 'PEN') {
+                    $cashRegister->increment('balance_pen', $validated['total_pen']);
+                }
+
+                if ($validated['moneda'] === 'USD') {
+                    $cashRegister->increment('balance_usd', $validated['total_usd']);
+                }
+
+                if ($validated['moneda'] === 'BOB') {
+                    $cashRegister->increment('balance_bob', $validated['total_bob']);
+                }
+            }
+
             return response()->json([
                 'success' => true,
                 'message' => 'Transacción registrada correctamente',
-                'data'    => $transaction->load(['cashRegister', 'user']),
+                'data'    => $transaction
             ], 201);
 
         } catch (\Throwable $e) {
-            Log::error('❌ Error al registrar transacción', ['error' => $e->getMessage()]);
+
+            Log::error('Error al guardar transacción', [
+                'error' => $e->getMessage()
+            ]);
 
             return response()->json([
                 'success' => false,
                 'message' => 'Error al registrar la transacción',
-                'error'   => $e->getMessage(),
+                'error'   => $e->getMessage()
             ], 500);
         }
     }

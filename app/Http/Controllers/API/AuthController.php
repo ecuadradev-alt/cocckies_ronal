@@ -4,35 +4,73 @@ namespace App\Http\Controllers\API;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Auth\Events\PasswordReset;
+use Illuminate\Support\Str;
 
 class AuthController extends Controller
 {
+    /**
+     * Registro (User + Company)
+     */
     public function register(Request $request)
     {
         $validated = $request->validate([
-            'name'     => 'required|string|max:255',
-            'email'    => 'required|string|email|unique:users,email',
-            'password' => 'required|string|min:6',
+            'name'         => 'required|string|max:255',
+            'email'        => 'required|string|email|unique:users,email',
+            'password'     => 'required|string|min:6|confirmed',
+            'company_name' => 'required|string|max:255',
         ]);
 
-        $user = User::create([
-            'name'     => $validated['name'],
-            'email'    => $validated['email'],
-            'password' => Hash::make($validated['password']),
+        // Crear empresa
+        $company = Company::create([
+            'name' => $validated['company_name'],
+            'slug' => Str::slug($validated['company_name']) . '-' . uniqid(),
+            'plan' => 'free',
         ]);
+
+        // Crear usuario (owner)
+        $user = User::create([
+            'name'       => $validated['name'],
+            'email'      => $validated['email'],
+            'password'   => Hash::make($validated['password']),
+            'company_id' => $company->id,
+            'genero'     => 'masculino',
+            'avatar'     => 'https://picsum.photos/seed/male/200',
+        ]);
+
+        // Opcional: asignar rol owner
+        $user->assignRole('owner');
+
+        $token = Auth::guard('api')->login($user);
 
         return response()->json([
-            'message' => 'Usuario registrado correctamente.',
-            'user' => $user->only(['id', 'name', 'email']),
+            'message' => 'Usuario y empresa creados correctamente.',
+            'user'    => [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'email'    => $user->email,
+                'avatar'   => $user->avatar,
+                'genero'   => $user->genero,
+                'telefono' => $user->telefono,
+                'company'  => $company,
+            ],
+            'roles'    => $user->getRoleNames(),
+            'permisos' => $user->getAllPermissions()->pluck('name'),
+            'token'    => $token,
+            'token_type' => 'bearer',
+            'expires_in' => Auth::guard('api')->factory()->getTTL() * 60,
         ], 201);
     }
 
+    /**
+     * Login
+     */
     public function login(Request $request)
     {
         $credentials = $request->validate([
@@ -57,39 +95,71 @@ class AuthController extends Controller
             'permisos'  => $user->getAllPermissions()->pluck('name'),
         ]);
     }
-
-    public function profile(Request $request)
+    /**
+     * Perfil autenticado
+     */
+    public function profile()
     {
-        $user = $request->user();
+        $user = Auth::guard('api')->user()->load('company');
 
         return response()->json([
-            'user'      => $user->only(['id', 'name', 'email']),
-            'roles'     => $user->getRoleNames(),
-            'permisos'  => $user->getAllPermissions()->pluck('name'),
+            'user' => [
+                'id'       => $user->id,
+                'name'     => $user->name,
+                'email'    => $user->email,
+                'avatar'   => $user->avatar,
+                'genero'   => $user->genero,
+                'telefono' => $user->telefono,
+                'company'  => $user->company,
+            ],
+            'roles'    => $user->getRoleNames(),
+            'permisos' => $user->getAllPermissions()->pluck('name'),
         ]);
     }
 
-    public function logout(Request $request)
+    /**
+     * Logout
+     */
+    public function logout()
     {
-        Auth::guard('web')->logout();
+        Auth::guard('api')->logout();
 
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return response()->json(['message' => 'Sesión cerrada correctamente.']);
+        return response()->json([
+            'message' => 'Sesión cerrada correctamente.',
+        ]);
     }
 
+    /**
+     * Refresh token
+     */
+    public function refresh()
+    {
+        return response()->json([
+            'access_token' => Auth::guard('api')->refresh(),
+            'token_type'   => 'bearer',
+            'expires_in'   => Auth::guard('api')->factory()->getTTL() * 60,
+        ]);
+    }
+
+    /**
+     * Enviar link de reseteo
+     */
     public function sendResetLinkEmail(Request $request)
     {
-        $request->validate(['email' => 'required|email']);
+        $request->validate([
+            'email' => 'required|email',
+        ]);
 
         $status = Password::sendResetLink($request->only('email'));
 
-        return $status === Password::RESET_LINK_SENT
-            ? response()->json(['message' => __($status)])
-            : response()->json(['message' => __($status)], 400);
+        return response()->json([
+            'message' => __($status),
+        ], $status === Password::RESET_LINK_SENT ? 200 : 400);
     }
 
+    /**
+     * Resetear contraseña
+     */
     public function resetPassword(Request $request)
     {
         $request->validate([
@@ -109,8 +179,8 @@ class AuthController extends Controller
             }
         );
 
-        return $status === Password::PASSWORD_RESET
-            ? response()->json(['message' => 'Contraseña actualizada correctamente'])
-            : response()->json(['message' => __($status)], 400);
+        return response()->json([
+            'message' => __($status),
+        ], $status === Password::PASSWORD_RESET ? 200 : 400);
     }
 }
