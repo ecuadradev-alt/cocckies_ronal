@@ -12,7 +12,6 @@ class Transaction extends Model
     protected $fillable = [
         'company_id',
         'cash_register_id',
-        'type',
         'metal_type',
         'grams',
         'purity',

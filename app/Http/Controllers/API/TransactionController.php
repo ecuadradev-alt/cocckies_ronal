@@ -13,7 +13,7 @@ use Illuminate\Support\Facades\Log;
 class TransactionController extends Controller
 {
     /** ============================================================
-     * 🔹 LISTAR TODAS LAS TRANSACCIONES DEL DÍA
+     * 🔹 LISTAR TODAS LAS TRANSACCIONES DEL DÍA (EMPRESA)
      * ============================================================ */
     public function index()
     {
@@ -27,6 +27,7 @@ class TransactionController extends Controller
                 'total_bob',
                 'created_at'
             )
+            ->where('company_id', Auth::user()->company_id)
             ->whereDate('created_at', Carbon::today('America/Lima'))
             ->orderByDesc('created_at')
             ->get();
@@ -39,10 +40,7 @@ class TransactionController extends Controller
     }
 
     /** ============================================================
-     * 🔹 CREAR NUEVA TRANSACCIÓN
-     * ============================================================ */
-    /* ============================================================
-     *  CREAR TRANSACCIÓN
+     * ➕ CREAR NUEVA TRANSACCIÓN
      * ============================================================ */
     public function store(Request $request)
     {
@@ -52,7 +50,7 @@ class TransactionController extends Controller
              * VALIDACIÓN
              * ======================= */
             $validated = $request->validate([
-                'company_id'            => 'nullable|integer',
+                'company_id'            => 'nullable|integer', // se ignora
                 'client_name'           => 'nullable|string|max:255',
                 'grams'                 => 'required|numeric|min:0.01',
                 'purity'                => 'required|numeric|min:0|max:1',
@@ -65,24 +63,39 @@ class TransactionController extends Controller
             ]);
 
             /* =======================
-             * CAMPOS AUTOMÁTICOS (EXISTEN EN BD)
+             * CAJA ACTIVA DE LA EMPRESA
              * ======================= */
+            $cashRegister = CashRegister::where('company_id', Auth::user()->company_id)
+                ->where('status', 'open')
+                ->latest('date')
+                ->first();
+
+            if (!$cashRegister) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'No hay caja abierta para la empresa.',
+                ], 409);
+            }
+
+            /* =======================
+             * CAMPOS AUTOMÁTICOS
+             * ======================= */
+            $validated['company_id']       = Auth::user()->company_id;
             $validated['metal_type']       = 'oro';
             $validated['created_by']       = Auth::id();
-            $validated['cash_register_id'] = Auth::user()->cash_register_id ?? 1;
+            $validated['cash_register_id'] = $cashRegister->id;
             $validated['hora']             = $validated['hora']
                 ?? now('America/Lima')->format('H:i:s');
 
             /* =======================
-             * CÁLCULOS BASE
+             * CÁLCULOS BASE (NO TOCADOS)
              * ======================= */
-            $grams       = $validated['grams'];
-            $purity      = $validated['purity'];
-            $priceOz     = $validated['price_per_oz'];
-            $discount    = $validated['discount_percentage'] ?? 0;
-            $exchange    = $validated['exchange_rate_pen_usd'] ?? 1;
+            $grams    = $validated['grams'];
+            $purity   = $validated['purity'];
+            $priceOz  = $validated['price_per_oz'];
+            $discount = $validated['discount_percentage'] ?? 0;
+            $exchange = $validated['exchange_rate_pen_usd'] ?? 1;
 
-            // Precio base
             $pricePerGramUSD = ($priceOz / 31.1035) * $purity;
             $pricePerGramPEN = $pricePerGramUSD * $exchange;
             $pricePerGramPEN -= $pricePerGramPEN * ($discount / 100);
@@ -96,7 +109,7 @@ class TransactionController extends Controller
             $validated['price_per_gram_bob'] = $pricePerGramBOB;
 
             /* =======================
-             * TOTALES (SEGÚN MONEDA)
+             * TOTALES POR MONEDA
              * ======================= */
             $validated['total_pen'] = null;
             $validated['total_usd'] = null;
@@ -121,21 +134,18 @@ class TransactionController extends Controller
 
             /* =======================
              * ACTUALIZAR CAJA
+             * (mantengo tu lógica)
              * ======================= */
-            $cashRegister = CashRegister::find($validated['cash_register_id']);
+            if ($validated['moneda'] === 'PEN') {
+                $cashRegister->increment('balance_pen', $validated['total_pen']);
+            }
 
-            if ($cashRegister) {
-                if ($validated['moneda'] === 'PEN') {
-                    $cashRegister->increment('balance_pen', $validated['total_pen']);
-                }
+            if ($validated['moneda'] === 'USD') {
+                $cashRegister->increment('balance_usd', $validated['total_usd']);
+            }
 
-                if ($validated['moneda'] === 'USD') {
-                    $cashRegister->increment('balance_usd', $validated['total_usd']);
-                }
-
-                if ($validated['moneda'] === 'BOB') {
-                    $cashRegister->increment('balance_bob', $validated['total_bob']);
-                }
+            if ($validated['moneda'] === 'BOB') {
+                $cashRegister->increment('balance_bob', $validated['total_bob']);
             }
 
             return response()->json([
@@ -159,7 +169,7 @@ class TransactionController extends Controller
     }
 
     /** ============================================================
-     * 🔹 OBTENER TRANSACCIONES DEL DÍA (con relaciones)
+     * 📆 TRANSACCIONES DEL DÍA (CON RELACIONES – EMPRESA)
      * ============================================================ */
     public function day()
     {
@@ -167,6 +177,7 @@ class TransactionController extends Controller
         $endOfDay   = Carbon::now('America/Lima')->endOfDay();
 
         $transactions = Transaction::with(['cashRegister', 'user'])
+            ->where('company_id', Auth::user()->company_id)
             ->whereBetween('created_at', [$startOfDay, $endOfDay])
             ->orderByDesc('created_at')
             ->get();

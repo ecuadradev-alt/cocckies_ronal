@@ -12,6 +12,9 @@ class CashRegister extends Model
 {
     use HasFactory, BelongsToCompany;
 
+    /* ============================================================
+     *  CAMPOS
+     * ============================================================ */
     protected $fillable = [
         'company_id',
         'date',
@@ -47,46 +50,60 @@ class CashRegister extends Model
         'balance_usd' => 'decimal:2',
     ];
 
-    /** Usuario que abrió la caja */
-    public function openedBy()
+    /* ============================================================
+     *  RELACIONES
+     *  👉 nombres distintos a columnas para evitar colisiones
+     * ============================================================ */
+
+    /** 👤 Usuario que abrió la caja */
+    public function openedUser()
     {
         return $this->belongsTo(User::class, 'opened_by');
     }
 
-    /** Usuario que cerró la caja */
-    public function closedBy()
+    /** 👤 Usuario que cerró la caja */
+    public function closedUser()
     {
         return $this->belongsTo(User::class, 'closed_by');
     }
 
+    /** 📦 Transacciones asociadas */
     public function transactions()
     {
         return $this->hasMany(Transaction::class);
     }
 
+    /* ============================================================
+     *  LÓGICA DE NEGOCIO
+     * ============================================================ */
+
+    /** 🔓 ¿Caja abierta? */
     public function isOpen(): bool
     {
-        return $this->status === 'abierta';
+        return $this->status === 'open';
     }
 
+    /** 🔒 Cerrar caja */
     public function closeRegister(array $closingData = []): void
     {
         $this->update(array_merge($closingData, [
-            'status' => 'cerrada',
-            'closed_by' => auth()->id(),
+            'status'    => 'closed',
+            'closed_by'=> auth()->id(),
         ]));
     }
 
-    public function applyTransaction(Transaction $transaction)
+    /** ➕ Aplicar transacción a saldos */
+    public function applyTransaction(Transaction $transaction): void
     {
         if (!$this->isOpen()) {
             return;
         }
 
         match ($transaction->moneda) {
-            'PEN' => $this->balance_pen += $transaction->total_pen,
-            'USD' => $this->balance_usd += $transaction->total_usd,
-            'BOB' => $this->balance_bob += $transaction->total_bob,
+            'PEN' => $this->balance_pen += $transaction->total_pen ?? 0,
+            'USD' => $this->balance_usd += $transaction->total_usd ?? 0,
+            'BOB' => $this->balance_bob += $transaction->total_bob ?? 0,
+            default => null,
         };
 
         $this->save();

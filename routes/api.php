@@ -51,21 +51,21 @@ Route::middleware('auth:sanctum')->group(function () {
 Route::prefix('caja')->group(function () {
 
     // Abrir caja
-    Route::post('/abrir', [CashRegisterController::class, 'abrir']);
+    Route::post('/abrir', [CashRegisterController::class, 'open']);
 
     // Cerrar caja
-    Route::post('/cerrar', [CashRegisterController::class, 'cerrar']);
+    Route::post('/cerrar', [CashRegisterController::class, 'close']);
 
     // Caja actual (hoy)
-    Route::get('/actual', [CashRegisterController::class, 'actual']);
+    Route::get('/actual', [CashRegisterController::class, 'today']);
 
     // Listar cierres
-    Route::get('/cierres', [CashRegisterController::class, 'cierres']);
+    Route::get('/cierres', [CashRegisterController::class, 'closures']);
 
-    // 🔥 Resumen detallado por día
-    Route::get('/resumen/{date}', [CashRegisterController::class, 'resumenDia']);
+    // Resumen detallado por día
+    Route::get('/resumen/{date}', [CashRegisterController::class, 'summaryDetail']);
+
 });
-
 
     /*
     |--------------------------------------------------------------------------

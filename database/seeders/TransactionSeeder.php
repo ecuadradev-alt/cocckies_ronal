@@ -19,7 +19,6 @@ class TransactionSeeder extends Seeder
         Transaction::create([
             'company_id'            => $cashRegister->company_id,
             'cash_register_id'      => $cashRegister->id,
-            'type'                  => 'compra',
             'metal_type'            => 'oro',
             'grams'                 => 500,
             'purity'                => 0.9,
@@ -34,7 +33,7 @@ class TransactionSeeder extends Seeder
             'moneda'                => 'PEN',
             'exchange_rate_pen_usd' => 3.75,
             'client_name'           => 'Minería Los Andes SAC',
-            'tipo_venta'            => 'empresa',
+            'tipo_venta'            => 'regular',
             'hora'                  => now()->format('H:i:s'),
             'created_by'            => $admin->id,
         ]);
