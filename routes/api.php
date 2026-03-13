@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 use App\Http\Controllers\API\AuthController;
 use App\Http\Controllers\API\TransactionController;
 use App\Http\Controllers\API\CashRegisterController;
+
+use App\Http\Controllers\API\CompanyController;
 use App\Http\Controllers\API\NewsController;
 use App\Http\Controllers\API\UserController;
 use App\Http\Controllers\API\UserRoleController;
@@ -42,7 +44,10 @@ Route::middleware('auth:sanctum')->group(function () {
     |--------------------------------------------------------------------------
     | Caja Registradora
     |--------------------------------------------------------------------------
+  
     */
+    Route::apiResource('companies', CompanyController::class);
+
 /*
 |--------------------------------------------------------------------------
 | Caja Registradora
@@ -159,3 +164,5 @@ Route::prefix('caja')->group(function () {
 Route::fallback(function () {
     return response()->json(['message' => 'Ruta no encontrada'], 404);
 });
+
+

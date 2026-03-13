@@ -71,30 +71,35 @@ class AuthController extends Controller
     /**
      * Login
      */
-    public function login(Request $request)
-    {
-        $credentials = $request->validate([
-            'email'    => 'required|string|email',
-            'password' => 'required|string',
-        ]);
+   public function login(Request $request)
+{
+    $credentials = $request->validate([
+        'email'    => ['required', 'email'],
+        'password' => ['required', 'string'],
+    ]);
 
-        if (!Auth::attempt($credentials, true)) {
-            throw ValidationException::withMessages([
-                'email' => ['Las credenciales no coinciden con nuestros registros.'],
-            ]);
-        }
-
-        $request->session()->regenerate();
-
-        $user = Auth::user();
-
-        return response()->json([
-            'message'   => 'Inicio de sesión exitoso',
-            'user' => $request->user()->only(['id', 'name', 'email']),
-            'roles'     => $user->getRoleNames(),
-            'permisos'  => $user->getAllPermissions()->pluck('name'),
+    if (!Auth::attempt($credentials)) {
+        throw ValidationException::withMessages([
+            'email' => ['Las credenciales no coinciden con nuestros registros.'],
         ]);
     }
+
+    // Regenerar sesión para evitar session fixation
+    $request->session()->regenerate();
+
+    $user = $request->user();
+
+    return response()->json([
+        'message' => 'Inicio de sesión exitoso',
+        'user' => [
+            'id'    => $user->id,
+            'name'  => $user->name,
+            'email' => $user->email,
+        ],
+        'roles'    => $user->getRoleNames(),
+        'permisos' => $user->getAllPermissions()->pluck('name'),
+    ]);
+}
     /**
      * Perfil autenticado
      */
