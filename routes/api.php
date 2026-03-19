@@ -17,7 +17,7 @@ use App\Http\Controllers\API\RolePermissionController;
 use App\Http\Controllers\API\UserPermissionController;
 use App\Http\Controllers\API\DashboardController;
 
-/*
+/* api.php
 |--------------------------------------------------------------------------
 | API Routes (Sanctum)
 |--------------------------------------------------------------------------
@@ -27,8 +27,7 @@ use App\Http\Controllers\API\DashboardController;
 */
 
 // 🔓 RUTAS PÚBLICAS
-Route::post('/register', [AuthController::class, 'register']);
-Route::post('/login', [AuthController::class, 'login']);
+
 Route::post('/password/email', [AuthController::class, 'sendResetLinkEmail']);
 Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 
@@ -36,8 +35,6 @@ Route::post('/password/reset', [AuthController::class, 'resetPassword']);
 Route::middleware('auth:sanctum')->group(function () {
 
     // Auth
-    Route::post('/logout', [AuthController::class, 'logout']);
-    Route::post('/refresh', [AuthController::class, 'refresh']);
     Route::get('/profile', [AuthController::class, 'profile']);
 
     /*

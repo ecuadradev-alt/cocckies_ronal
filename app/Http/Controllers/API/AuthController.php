@@ -27,97 +27,76 @@ class AuthController extends Controller
             'company_name' => 'required|string|max:255',
         ]);
 
-        // Crear empresa
         $company = Company::create([
             'name' => $validated['company_name'],
             'slug' => Str::slug($validated['company_name']) . '-' . uniqid(),
             'plan' => 'free',
         ]);
 
-        // Crear usuario (owner)
         $user = User::create([
             'name'       => $validated['name'],
             'email'      => $validated['email'],
             'password'   => Hash::make($validated['password']),
             'company_id' => $company->id,
-            'genero'     => 'masculino',
-            'avatar'     => 'https://picsum.photos/seed/male/200',
         ]);
 
-        // Opcional: asignar rol owner
         $user->assignRole('owner');
 
-        $token = Auth::guard('api')->login($user);
+        // 🔥 LOGIN AUTOMÁTICO (SANCTUM)
+        Auth::login($user);
 
         return response()->json([
-            'message' => 'Usuario y empresa creados correctamente.',
-            'user'    => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'email'    => $user->email,
-                'avatar'   => $user->avatar,
-                'genero'   => $user->genero,
-                'telefono' => $user->telefono,
-                'company'  => $company,
-            ],
-            'roles'    => $user->getRoleNames(),
-            'permisos' => $user->getAllPermissions()->pluck('name'),
-            'token'    => $token,
-            'token_type' => 'bearer',
-            'expires_in' => Auth::guard('api')->factory()->getTTL() * 60,
+            'message' => 'Usuario creado correctamente',
+            'user'    => $user,
+            'roles'   => $user->getRoleNames(),
+            'permisos'=> $user->getAllPermissions()->pluck('name'),
         ], 201);
     }
 
     /**
-     * Login
+     * Login (FIXED)
      */
-   public function login(Request $request)
-{
-    $credentials = $request->validate([
-        'email'    => ['required', 'email'],
-        'password' => ['required', 'string'],
-    ]);
+    public function login(Request $request)
+    {
+        $credentials = $request->validate([
+            'email'    => ['required', 'email'],
+            'password' => ['required', 'string'],
+        ]);
 
-    if (!Auth::attempt($credentials)) {
-        throw ValidationException::withMessages([
-            'email' => ['Las credenciales no coinciden con nuestros registros.'],
+        // 🔥 CAMBIO CLAVE AQUÍ
+        if (!Auth::attempt($credentials)) {
+            return response()->json([
+                'message' => 'Credenciales incorrectas'
+            ], 401);
+        }
+
+        // Evita session fixation
+        $request->session()->regenerate();
+
+        $user = $request->user();
+
+        return response()->json([
+            'message' => 'Inicio de sesión exitoso',
+            'user' => [
+                'id'    => $user->id,
+                'name'  => $user->name,
+                'email' => $user->email,
+            ],
+            'roles'    => $user->getRoleNames(),
+            'permisos' => $user->getAllPermissions()->pluck('name'),
         ]);
     }
 
-    // Regenerar sesión para evitar session fixation
-    $request->session()->regenerate();
-
-    $user = $request->user();
-
-    return response()->json([
-        'message' => 'Inicio de sesión exitoso',
-        'user' => [
-            'id'    => $user->id,
-            'name'  => $user->name,
-            'email' => $user->email,
-        ],
-        'roles'    => $user->getRoleNames(),
-        'permisos' => $user->getAllPermissions()->pluck('name'),
-    ]);
-}
     /**
      * Perfil autenticado
      */
-    public function profile()
+    public function profile(Request $request)
     {
-        $user = Auth::guard('api')->user()->load('company');
+        $user = $request->user()->load('company');
 
         return response()->json([
-            'user' => [
-                'id'       => $user->id,
-                'name'     => $user->name,
-                'email'    => $user->email,
-                'avatar'   => $user->avatar,
-                'genero'   => $user->genero,
-                'telefono' => $user->telefono,
-                'company'  => $user->company,
-            ],
-            'roles'    => $user->getRoleNames(),
+            'user' => $user,
+            'roles' => $user->getRoleNames(),
             'permisos' => $user->getAllPermissions()->pluck('name'),
         ]);
     }
@@ -125,24 +104,15 @@ class AuthController extends Controller
     /**
      * Logout
      */
-    public function logout()
+    public function logout(Request $request)
     {
-        Auth::guard('api')->logout();
+        Auth::logout();
+
+        $request->session()->invalidate();
+        $request->session()->regenerateToken();
 
         return response()->json([
-            'message' => 'Sesión cerrada correctamente.',
-        ]);
-    }
-
-    /**
-     * Refresh token
-     */
-    public function refresh()
-    {
-        return response()->json([
-            'access_token' => Auth::guard('api')->refresh(),
-            'token_type'   => 'bearer',
-            'expires_in'   => Auth::guard('api')->factory()->getTTL() * 60,
+            'message' => 'Sesión cerrada correctamente',
         ]);
     }
 
