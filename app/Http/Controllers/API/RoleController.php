@@ -28,7 +28,7 @@ class RoleController extends Controller
 
         $role = Role::create([
             'name' => $validated['name'],
-            'guard_name' => 'web', // 👈 importante
+            'guard_name' => 'api', // 👈 importante
         ]);
 
         $role->load('permissions');

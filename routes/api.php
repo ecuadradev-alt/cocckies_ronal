@@ -150,11 +150,9 @@ Route::prefix('caja')->group(function () {
     | Dashboard
     |--------------------------------------------------------------------------
     */
-    Route::get('/admin/dashboard', [DashboardController::class, 'index'])
-        ->middleware('role:admin');
+    Route::get('/admin/dashboard', [DashboardController::class, 'index']);
 
-    Route::get('/reportes', [DashboardController::class, 'reportes'])
-        ->middleware('permission:ver reportes');
+    Route::get('/reportes', [DashboardController::class, 'reportes']);
 });
 
 // ❌ Fallback
