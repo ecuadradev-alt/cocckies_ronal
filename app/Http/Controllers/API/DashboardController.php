@@ -12,6 +12,78 @@ use Illuminate\Support\Facades\DB;
 
 class DashboardController extends Controller
 {
+
+public function index()
+{
+    $today = \Carbon\Carbon::today();
+
+    // 📊 STATS
+    $usersCount = \App\Models\User::count();
+    $consultasHoy = \App\Models\Transaction::whereDate('created_at', $today)->count();
+    $volumenVendido = \App\Models\Transaction::where('type', 'venta')->sum('grams');
+
+    $lastPrice = \App\Models\Transaction::whereNotNull('price_per_gram_usd')
+        ->latest('created_at')
+        ->value('price_per_gram_usd');
+
+    $avgWeek = \App\Models\Transaction::whereNotNull('price_per_gram_usd')
+        ->whereDate('created_at', '>=', now()->subDays(6))
+        ->avg('price_per_gram_usd');
+
+    // 📈 GOLD CHART
+    $labels = [];
+    $goldData = [];
+
+    for ($i = 6; $i >= 0; $i--) {
+        $day = now()->subDays($i);
+        $labels[] = $day->format('d M');
+
+        $avg = \App\Models\Transaction::whereDate('created_at', $day)
+            ->avg('price_per_gram_usd');
+
+        $goldData[] = $avg ? round($avg, 2) : 0;
+    }
+
+    // 👥 USERS
+    $active = \App\Models\User::whereNotNull('last_login_at')
+        ->where('last_login_at', '>=', now()->subDays(30))
+        ->count();
+
+    $total = \App\Models\User::count();
+    $inactive = max(0, $total - $active);
+
+    // 💰 CAJA (simple ejemplo)
+    $caja = [
+        'apertura' => now()->format('H:i'),
+        'cierre' => '--',
+        'saldo_inicial' => 0,
+        'saldo_actual' => $volumenVendido,
+    ];
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'stats' => [
+                ['label' => 'Usuarios', 'value' => $usersCount],
+                ['label' => 'Transacciones', 'value' => $consultasHoy],
+                ['label' => 'Volumen', 'value' => round($volumenVendido, 2)],
+                ['label' => 'Precio Oro', 'value' => $lastPrice],
+                ['label' => 'Promedio', 'value' => $avgWeek],
+            ],
+            'charts' => [
+                'gold' => [
+                    'labels' => $labels,
+                    'data' => $goldData,
+                ],
+                'users' => [
+                    'labels' => ['Activos', 'Inactivos'],
+                    'data' => [$active, $inactive],
+                ],
+            ],
+            'caja' => $caja,
+        ]
+    ]);
+}
     /**
      * 📊 KPIs principales
      * Endpoint: GET /api/admin/dashboard/stats

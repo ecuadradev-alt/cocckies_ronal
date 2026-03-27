@@ -28,6 +28,16 @@ return [
 
     ],
 
+   /*
+         * 
+         * 
+         * 
+      
+         */
+    'defaults' => [
+    'guard' => 'api',
+],
+
     'table_names' => [
 
         /*

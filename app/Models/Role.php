@@ -7,6 +7,9 @@ use Illuminate\Database\Eloquent\Casts\Attribute;
 
 class Role extends SpatieRole
 {
+
+  protected $guard_name = 'api'; 
+
     protected function name(): Attribute
     {
         return Attribute::make(
